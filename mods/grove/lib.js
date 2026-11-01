@@ -1,12 +1,21 @@
 import { exec, readTextFile, appHome } from "herdr";
 
+// The app's PATH comes from a login shell, which misses tools that version
+// managers put on PATH only for interactive shells (mise, asdf, cargo).
+const EXTRA_PATH = '"$HOME/.local/share/mise/shims:$HOME/.local/bin:$HOME/.asdf/shims:$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"';
+
+const result = (r) => ({ ok: r.code === 0, out: (r.stdout ?? "").trim(), err: (r.stderr || r.stdout || "").trim() });
+
 // exec never throws here: a program that can't start reads as a failed run.
 export async function sh(cmd, args, opts = {}) {
   try {
-    const r = await exec(cmd, args, opts);
-    return { ok: r.code === 0, out: (r.stdout ?? "").trim(), err: (r.stderr || r.stdout || "").trim() };
-  } catch (e) {
-    return { ok: false, out: "", err: String(e?.message ?? e) };
+    return result(await exec(cmd, args, opts));
+  } catch (first) {
+    try {
+      return result(await exec("sh", ["-c", `PATH=${EXTRA_PATH} exec "$@"`, "sh", cmd, ...args], opts));
+    } catch {
+      return { ok: false, out: "", err: String(first?.message ?? first) };
+    }
   }
 }
 

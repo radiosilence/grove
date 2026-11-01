@@ -15,10 +15,10 @@ It replaces a set of shell pickers (fzf in hidden terminals, one per job) with o
 ```sh
 git clone https://github.com/radiosilence/grove ~/workspace/radiosilence/grove
 cd ~/workspace/radiosilence/grove
-mise run install    # links mods/* into ~/.config/herdr-app/mods, lists missing keys
+mise run install    # copies mods/* into ~/.config/herdr-app/mods, lists missing keys
 ```
 
-`bin/install` respects `HERDR_APP_HOME`. It never overwrites a mod folder that isn't a link, and it does not edit `keys.json`: it prints each suggested key as `add` (free) or `taken` (bound to something else), so you merge what you want.
+`bin/install` respects `HERDR_APP_HOME`. It copies rather than links because `svg()` resolves icon paths inside the app's folder, and an icon behind a symlink to elsewhere doesn't draw; run it again after pulling. It never overwrites a mod folder it didn't install, and it does not edit `keys.json`: it prints each suggested key as `add` (free) or `taken` (bound to something else), so you merge what you want.
 
 Requires `git`. The PR and issue tabs need an authenticated [`gh`](https://cli.github.com); the folders tab needs [`zoxide`](https://github.com/ajeetdsouza/zoxide).
 
@@ -104,6 +104,6 @@ Herdr mods can't import from another mod's folder, so the launchers are a few li
 
 ## Development
 
-`mise run check` loads each mod once in `herdr-app`. `mise run lint` runs oxlint and oxfmt. Saving a file reloads the mod in a running window.
+`mise run install` after an edit, then `mise run check` loads each mod once in `herdr-app`. `mise run lint` runs oxlint and oxfmt. Saving a file reloads the mod in a running window.
 
 Icons are from [Lucide](https://lucide.dev) (ISC).

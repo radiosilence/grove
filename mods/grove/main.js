@@ -448,7 +448,11 @@ export default class Grove extends View {
   }
 
   kbd(keys, label, t) {
-    return h_flex().gap(5).items_center().child(div().px(5).rounded(4).bg(t.raised).border(1).border_color(t.border).text_color(t.muted).child(keys)).child(div().text_color(t.dim).child(label));
+    return h_flex()
+      .gap(6)
+      .items_center()
+      .child(h_flex().h(18).min_w(18).px(4).items_center().justify_center().rounded(4).bg(t.raised).border(1).border_color(t.border).text_size(10.5).text_color(t.muted).child(keys))
+      .child(div().text_color(t.dim).child(label));
   }
 
   prColor(pr, t) {
@@ -668,13 +672,13 @@ export default class Grove extends View {
   }
 
   preview(t, r) {
-    const shell = (...kids) => v_flex().id("grove-preview").flex_1().min_w(0).min_h(0).gap(10).px(16).py(12).border_l(1).border_color(t.border).overflow_y_scroll().children(kids);
+    const shell = (...kids) => v_flex().id("grove-preview").flex_1().min_w(0).h_full().gap(10).px(16).py(12).border_l(1).border_color(t.border).overflow_y_scroll().children(kids.filter(Boolean));
     const head = (title, sub) =>
       v_flex()
         .gap(3)
         .child(div().text_size(14.5).font_semibold().text_color(t.foreground).child(title))
         .when(Boolean(sub), (el) => el.child(div().text_size(11.5).text_color(t.dim).child(sub)));
-    const prose = (text) => div().text_color(t.muted).line_height(19).child(text);
+    const prose = (text) => div().text_color(t.muted).child(text);
     if (!r) return shell();
     const h = this.home;
     const key = this.detailKey(r);
@@ -994,6 +998,7 @@ export default class Grove extends View {
       .child(this.search(t))
       .child(
         h_flex()
+          .items_start()
           .flex_1()
           .min_h(0)
           .mt(10)
@@ -1003,7 +1008,7 @@ export default class Grove extends View {
             v_flex()
               .flex_1()
               .min_w(0)
-              .min_h(0)
+              .h_full()
               .pt(4)
               .child(this.list(t, rows, at)),
           )

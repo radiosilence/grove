@@ -3,7 +3,7 @@ import { sh } from "./lib.js";
 // zoxide's folders, most frecent first.
 export async function frecent() {
   const r = await sh("zoxide", ["query", "--list", "--score"]);
-  if (!r.ok) throw new Error(r.err.includes("No such file") || !r.err ? "zoxide isn't installed." : r.err);
+  if (!r.ok) throw new Error(/not found|No such file/.test(r.err) || !r.err ? "zoxide isn't installed, or isn't on PATH." : r.err);
   return r.out
     .split("\n")
     .map((l) => l.trim().match(/^([\d.]+)\s+(.+)$/))

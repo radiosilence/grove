@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Links every mod in mods/ into the Herdr app's mods folder, then lists the
+# Copies every mod in mods/ into the Herdr app's mods folder, then lists the
 # suggested keys from keys.json that are missing or bound to something else.
+# Copies, not links: svg() and image() resolve paths inside the app's folder,
+# so icons behind a symlink to elsewhere don't draw. Run it again after edits.
 set -euo pipefail
 here=$(cd "$(dirname "$0")/.." && pwd)
 app=${HERDR_APP_HOME:-$HOME/.config/herdr-app}
@@ -9,12 +11,16 @@ mkdir -p "$app/mods"
 for dir in "$here"/mods/*/; do
   name=$(basename "$dir")
   dest="$app/mods/$name"
-  if [[ -e $dest && ! -L $dest ]]; then
-    echo "skip   $name: $dest exists and is not a link" >&2
+  [[ -L $dest ]] && rm "$dest"
+  if [[ -d $dest && ! -e $dest/.grove ]]; then
+    echo "skip   $name: $dest exists and wasn't installed by grove" >&2
     continue
   fi
-  ln -sfn "${dir%/}" "$dest"
-  echo "linked $name"
+  mkdir -p "$dest"
+  # The app writes its type files and jsconfig.json into each mod folder.
+  rsync -a --delete --exclude '*.d.ts' --exclude jsconfig.json --exclude .grove "$dir" "$dest/"
+  touch "$dest/.grove"
+  echo "installed $name"
 done
 
 command -v jq >/dev/null || exit 0

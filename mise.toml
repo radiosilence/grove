@@ -3,7 +3,7 @@
 "npm:oxfmt" = "latest"
 
 [tasks.install]
-description = "Link the mods into the Herdr app and list missing keys"
+description = "Copy the mods into the Herdr app and list missing keys"
 run = "bin/install"
 
 [tasks.check]
