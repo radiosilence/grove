@@ -7,17 +7,33 @@ export function place(s) {
   return panes().find((p) => tabs.has(p.tab) && p.cwd)?.cwd || s.folder || null;
 }
 
+// Every space with where it is, read once: spaces() and panes() are host
+// calls, and a list of folders asking per row is thousands of them a frame.
+export function placed() {
+  const ps = panes();
+  return spaces().map((s) => {
+    const tabs = new Set((s.tabs ?? []).map((t) => t.id));
+    return { s, at: ps.find((p) => tabs.has(p.tab) && p.cwd)?.cwd || s.folder || null };
+  });
+}
+
 const inside = (p, dir) => p === dir || p.startsWith(`${dir}/`);
 
 // The space showing a folder: its first terminal is in it, and not in a
 // deeper checkout listed in `others` (a worktree nested in its repo).
-export function spaceOf(path, on, others = []) {
-  return spaces().find((s) => {
+export function spaceOf(path, on, others = [], snap = placed()) {
+  return snap.find(({ s, at }) => {
     if ((s.machine ?? null) !== (on ?? null)) return false;
-    const at = place(s);
     if (!at || !inside(at, path)) return false;
     return !others.some((o) => o !== path && o.length > path.length && inside(at, o));
-  });
+  })?.s;
+}
+
+// owner/repo of a checkout's origin on GitHub, lowercased; null if it has none.
+export async function originSlug(path, on) {
+  const r = await git(path, ["remote", "get-url", "origin"], on);
+  const m = r.ok && r.out.match(/github\.com[:/]([^/]+)\/(.+?)(?:\.git)?\/?$/i);
+  return m ? `${m[1]}/${m[2]}`.toLowerCase() : null;
 }
 
 // The repo a folder belongs to. null outside git.

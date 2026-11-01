@@ -60,7 +60,7 @@ With an empty filter, a **Clean up** row appears when there are finished worktre
 
 An issue gets a worktree named `<n>-<title>` (`931-rating-reconciliation`), and its new space has `issueCommand` typed into it. Typing it into the shell rather than starting the agent directly means it runs with the folder's environment.
 
-Paste a URL or `owner/repo#n` to open a PR or issue from another repo; its checkout is found under the `workspace` roots as `<root>/<owner>/<repo>` or `<root>/*/<repo>`. A bare number not in the list is looked up as a PR, then as an issue.
+Paste a URL or `owner/repo#n` to open a PR or issue from any repo you have checked out. The focused repo is used when its `origin` matches; otherwise grove looks under the `workspace` roots (`<root>/<owner>/<repo>`, `<root>/*/<repo>`), then at zoxide folders named after the repo (with or without a leading dot, so `~/.dotfiles` counts), each confirmed by its `origin` remote. A bare number not in the list is looked up as a PR, then as an issue.
 
 **Folders.** zoxide's folders by frecency. Enter selects the space already in that folder or opens one there, and bumps the folder in zoxide. A filter starting with `/` or `~` opens that path.
 

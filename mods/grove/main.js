@@ -179,7 +179,8 @@ export default class Grove extends View {
     if (this.mode === "worktrees") {
       const paths = this.paths();
       const here = this.here();
-      const rows = d.map((c) => ({ key: `wt:${c.path}`, kind: "worktree", c, space: G.spaceOf(c.path, this.on, paths), here: c.path === here }));
+      const snap = G.placed();
+      const rows = d.map((c) => ({ key: `wt:${c.path}`, kind: "worktree", c, space: G.spaceOf(c.path, this.on, paths, snap), here: c.path === here }));
       const out = rank(rows, q, (r) => `${r.c.branch ?? "detached"} ${tilde(r.c.path, h)} ${r.c.pr ? `#${r.c.pr.number} ${r.c.pr.title}` : ""}`);
       const name = raw.trim();
       if (name && !/\s/.test(name) && !d.some((c) => c.branch === name)) out.push({ key: `new:${name}`, kind: "create", branch: name });
@@ -191,26 +192,32 @@ export default class Grove extends View {
     }
 
     if (this.mode === "prs" || this.mode === "issues") {
-      const rows = d.map((x) => ({ key: `${x.kind}:${x.number}`, kind: x.kind, x, wt: this.worktreeFor(x) }));
+      const paths = this.paths();
+      const snap = G.placed();
+      const rows = d.map((x) => {
+        const wt = this.worktreeFor(x);
+        return { key: `${x.kind}:${x.number}`, kind: x.kind, x, wt, open: Boolean(wt && G.spaceOf(wt.path, this.on, paths, snap)) };
+      });
       const out = rank(rows, q, (r) => `#${r.x.number} @${r.x.who} ${r.x.title} ${r.x.branch ?? ""} ${r.x.labels.join(" ")}${r.x.draft ? " draft" : ""}`);
       const ref = H.parseRef(raw);
       if (ref && (ref.owner || !d.some((x) => x.number === ref.number))) out.unshift({ key: `ref:${ref.label}`, kind: "ref", ref });
       return out;
     }
 
-    const rows = d.map((f) => ({ key: `dir:${f.path}`, kind: "folder", path: f.path, space: this.spaceAt(f.path) }));
+    const snap = G.placed();
+    const rows = d.map((f) => ({ key: `dir:${f.path}`, kind: "folder", path: f.path, space: this.spaceAt(f.path, snap) }));
     const out = rank(rows, q, (r) => tilde(r.path, h));
     const typed = raw.trim();
     if (/^[~/]/.test(typed)) {
       const path = expand(typed, h).replace(/\/+$/, "") || "/";
-      if (!d.some((f) => f.path === path)) out.unshift({ key: `path:${path}`, kind: "path", path, space: this.spaceAt(path) });
+      if (!d.some((f) => f.path === path)) out.unshift({ key: `path:${path}`, kind: "path", path, space: this.spaceAt(path, snap) });
     }
     return out;
   }
 
   // Folders open where a space already is, exactly: a parent folder isn't its repo's spaces.
-  spaceAt(path) {
-    return spaces().find((s) => !s.machine && G.place(s) === path);
+  spaceAt(path, snap = G.placed()) {
+    return snap.find(({ s, at }) => !s.machine && at === path)?.s;
   }
 
   // ── Actions ──────────────────────────────────────────────────────────
@@ -289,9 +296,10 @@ export default class Grove extends View {
   async openRef(ref) {
     let repo = this.repo;
     let on = this.on;
-    if (ref.owner) {
-      const path = await H.localCheckout(this.cfg, home(), ref.owner, ref.name);
-      if (!path) throw new Error(`No checkout of ${ref.owner}/${ref.name} under ${this.cfg.workspace.join(" or ")}.`);
+    const slug = ref.owner && `${ref.owner}/${ref.name}`.toLowerCase();
+    if (slug && !(this.repo && (await G.originSlug(this.repo.main, this.on)) === slug)) {
+      const path = await this.checkoutOf(ref.owner, ref.name, slug);
+      if (!path) throw new Error(`No checkout of ${ref.owner}/${ref.name} under ${this.cfg.workspace.join(" or ")} or among zoxide's folders.`);
       repo = await G.repoOf(path, null);
       if (repo) repo.home = home();
       on = null;
@@ -300,6 +308,17 @@ export default class Grove extends View {
     const hit = await H.resolve(repo, ref);
     if (hit.kind === "pr") await this.checkoutPR(repo, hit, on);
     else await this.checkoutIssue(repo, hit, on);
+  }
+
+  // A local checkout whose origin is owner/name: under the workspace roots,
+  // else a zoxide folder named after the repo (dotfiles may be ~/.dotfiles).
+  async checkoutOf(owner, name, slug) {
+    const found = await H.localCheckout(this.cfg, home(), owner, name);
+    if (found && (await G.originSlug(found, null)) === slug) return found;
+    const known = this.data.folders ?? (await F.frecent().catch(() => []));
+    const named = known.map((f) => f.path).filter((p) => base(p).replace(/^\./, "").toLowerCase() === name.toLowerCase());
+    for (const p of named) if ((await G.originSlug(p, null)) === slug) return (await G.repoOf(p, null))?.main ?? p;
+    return found;
   }
 
   remove(r, cx) {
@@ -513,7 +532,7 @@ export default class Grove extends View {
       if (x.draft) right.push(this.chip("draft", t.dim));
       if (x.review === "APPROVED") right.push(this.chip("approved", t.ansi2));
       if (x.review === "CHANGES_REQUESTED") right.push(this.chip("changes", t.ansi1));
-      if (r.wt) right.push(this.chip(G.spaceOf(r.wt.path, this.on, this.paths()) ? "open" : "worktree", t.accent));
+      if (r.wt) right.push(this.chip(r.open ? "open" : "worktree", t.accent));
       right.push(div().w(30).text_size(11).text_color(t.dim).child(ago(x.updated)));
     } else if (r.kind === "ref") {
       tileName = "link";
@@ -947,7 +966,7 @@ export default class Grove extends View {
           .child(this.busy)
       : this.error
         ? div().flex_1().min_w(0).truncate().text_color(t.blocked).child(this.error)
-        : this.failed[this.mode] && this.rows().length
+        : this.failed[this.mode] && this.data[this.mode]?.length
           ? div().flex_1().min_w(0).truncate().text_color(t.ansi3).child(this.failed[this.mode])
           : null;
     const verb = { worktree: "open", create: "create", sweep: "clean up", pr: "check out", issue: "start", ref: "look up", folder: "open", path: "open" }[sel?.kind] ?? "open";
