@@ -1,0 +1,18 @@
+[tools]
+"npm:oxlint" = "latest"
+"npm:oxfmt" = "latest"
+
+[tasks.install]
+description = "Link the mods into the Herdr app and list missing keys"
+run = "bin/install"
+
+[tasks.check]
+description = "Load every mod once in herdr-app"
+run = 'for d in mods/*/; do herdr-app check "${HERDR_APP_HOME:-$HOME/.config/herdr-app}/mods/$(basename "$d")" | tail -1; done'
+
+[tasks.lint]
+description = "Lint and check formatting"
+run = ["oxlint mods", "oxfmt --check mods"]
+
+[tasks.fmt]
+run = "oxfmt mods"

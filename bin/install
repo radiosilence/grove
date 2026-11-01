@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Links every mod in mods/ into the Herdr app's mods folder, then lists the
+# suggested keys from keys.json that are missing or bound to something else.
+set -euo pipefail
+here=$(cd "$(dirname "$0")/.." && pwd)
+app=${HERDR_APP_HOME:-$HOME/.config/herdr-app}
+mkdir -p "$app/mods"
+
+for dir in "$here"/mods/*/; do
+  name=$(basename "$dir")
+  dest="$app/mods/$name"
+  if [[ -e $dest && ! -L $dest ]]; then
+    echo "skip   $name: $dest exists and is not a link" >&2
+    continue
+  fi
+  ln -sfn "${dir%/}" "$dest"
+  echo "linked $name"
+done
+
+command -v jq >/dev/null || exit 0
+keys="$app/keys.json"
+[[ -f $keys ]] || keys=/dev/null
+jq -r --slurpfile mine "$keys" '
+  .global | to_entries[] |
+  ($mine[0].global[.key]? // null) as $have |
+  if $have == .value then empty
+  elif $have == null then "add    \"\(.key)\": \"\(.value)\""
+  else "taken  \(.key) is \"\($have)\", grove suggests \"\(.value)\"" end
+' "$here/keys.json" 2>/dev/null || true

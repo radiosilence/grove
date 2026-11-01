@@ -1,0 +1,11 @@
+{
+  "global": {
+    "alt-w": "mod.open:grove-worktrees",
+    "alt-shift-p": "mod.open:grove-prs",
+    "alt-shift-i": "mod.open:grove-issues",
+    "cmd-shift-n": "mod.open:grove-folders",
+    "cmd-]": "mod.open:grove-next",
+    "cmd-[": "mod.open:grove-prev",
+    "cmd-;": "mod.open:grove-shell"
+  }
+}
